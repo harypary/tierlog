@@ -27,7 +27,6 @@ from src.track import (
     should_record,
 )
 
-UTC = UTC
 NOW = datetime(2026, 8, 7, tzinfo=UTC)
 
 

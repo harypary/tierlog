@@ -80,12 +80,6 @@
     "plans_expected": 1,
     "plans_resolved": 1
   },
-  "kit": {
-    "checked_at": "2026-08-13T08:22:30.765022+00:00",
-    "http_status": 403,
-    "note": "HTTP 403",
-    "ok": false
-  },
   "notion": {
     "checked_at": "2026-08-13T08:22:30.765022+00:00",
     "http_status": 200,

@@ -63,6 +63,11 @@ tools:
   #                 公表されている料金と一致せず、検証できなかった
   #   copy-ai     … 4プラン中1つしか取れず、しかも年額総額($288/yr)なので
   #                 他ツールの月額表示と並べて比較できない
+  #   kit         … 料金ページが GitHub Actions のIPに 403 を返す。7日連続で
+  #                 失敗したので恒久的な遮断と判断した。手元(住宅IP)からは
+  #                 取得できるが、履歴はCIからしか書けない設計なので意味がない。
+  #                 UA を偽装すれば通る可能性はあるが、それは相手のボット判定の
+  #                 回避であり methodology で公言している方針に反するのでやらない
 
   - slug: cursor
     name: Cursor
@@ -201,12 +206,3 @@ tools:
     currency: USD
     affiliate: {program: direct, url: "", terms: ""}
 
-  - slug: kit
-    name: Kit
-    vendor: Kit (ConvertKit)
-    category: publishing
-    homepage: https://kit.com/
-    pricing_url: https://kit.com/pricing
-    plans: [Newsletter, Creator, Pro]
-    currency: USD
-    affiliate: {program: direct, url: "", terms: ""}

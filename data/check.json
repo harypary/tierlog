@@ -64,17 +64,6 @@
     "resolved": 1,
     "status": "PARTIAL"
   },
-  "kit": {
-    "detail": "HTTP 403",
-    "expected": 3,
-    "missing": [
-      "Newsletter",
-      "Creator",
-      "Pro"
-    ],
-    "resolved": 0,
-    "status": "FETCH"
-  },
   "notion": {
     "detail": "embedded-json",
     "expected": 4,
