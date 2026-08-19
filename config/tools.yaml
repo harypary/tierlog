@@ -174,7 +174,13 @@ tools:
     pricing_url: https://elevenlabs.io/pricing
     plans: [Free, Starter, Creator, Pro, Scale]
     currency: USD
-    affiliate: {program: direct, url: "", terms: ""}
+    # 2026-08-19 承認。terms は ElevenLabs 公式FAQの記載をそのまま写した。
+    # 検索連動広告での ElevenLabs 関連語の出稿は規約違反(アカウント停止・報酬没収)。
+    # このサイトは広告を一切出さないので該当しないが、方針を変えるときは注意。
+    affiliate:
+      program: direct
+      url: "https://try.elevenlabs.io/sekcys9h668j"
+      terms: "22% for the first 12 months (11% on Business plan)"
 
   - slug: descript
     name: Descript
