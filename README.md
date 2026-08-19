@@ -1,4 +1,4 @@
-# Repriced — 英語圏SaaSアフィリエイト自動サイト
+# Tierlog — 英語圏SaaSアフィリエイト自動サイト
 
 主要AIツールの料金ページを毎日巡回 → 価格改定を検出 → 履歴として蓄積 → 静的サイトを生成 →
 GitHub Pages へ自動デプロイ。**サーバー代・API利用料ゼロ**で動き続けます。
@@ -175,10 +175,10 @@ monday.com removed the Free plan   ← 嘘。同上
 公開まで一気にやる場合（`gh auth login` だけ先に済ませておく）:
 
 ```powershell
-.\setup.ps1 -RepoName repriced
+.\setup.ps1 -RepoName tierlog
 ```
 
-公開URLは `https://harypary.github.io/repriced/` になります。
+公開URLは `https://harypary.github.io/tierlog/` になります。
 
 [setup.ps1](setup.ps1) が以下をまとめて実行します。
 

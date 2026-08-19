@@ -12,7 +12,7 @@ param(
     # 公開リポジトリ名。そのまま公開URLになる。
     # 追跡対象ベンダーの商標(openai / notion など)をURLに含めないこと。
     # 独立したトラッカーであることが名前から分かるものにする。
-    [string]$RepoName = "repriced",
+    [string]$RepoName = "tierlog",
     [switch]$SkipCrawl
 )
 
