@@ -15,7 +15,7 @@ python-dotenv==1.2.2
 
 # --- 推移的依存(これらも固定しないと範囲指定で入ってくる) ---
 certifi==2026.7.22
-charset-normalizer==3.4.9
+charset-normalizer==3.5.1
 idna==3.18
 MarkupSafe==3.0.3
 urllib3==2.7.0
