@@ -5,7 +5,7 @@
 # バージョンを固定する理由は requirements.txt と同じ。
 
 pytest==9.1.1
-ruff==0.16.1
+ruff==0.16.3
 
 # --- pytest の推移的依存 ---
 colorama==0.4.6
