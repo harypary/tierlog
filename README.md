@@ -1,5 +1,7 @@
 # Tierlog — 英語圏SaaSアフィリエイト自動サイト
 
+**公開サイト → https://harypary.github.io/tierlog/**
+
 主要AIツールの料金ページを毎日巡回 → 価格改定を検出 → 履歴として蓄積 → 静的サイトを生成 →
 GitHub Pages へ自動デプロイ。**サーバー代・API利用料ゼロ**で動き続けます。
 
