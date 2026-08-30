@@ -24,6 +24,7 @@ from src.catalog import ConfigError, load_catalog
 from src.collect import check, collect, compare_checks
 from src.demo import build_demo_history
 from src.fetch import Fetcher
+from src.indexnow import changed_urls, submit
 from src.pages import build_compare_pages, build_feed, build_tool_pages
 from src.render import render_site
 from src.track import build_state, load_history, load_latest, save_latest
@@ -50,6 +51,11 @@ def parse_args() -> argparse.Namespace:
         "--record",
         action="store_true",
         help="価格履歴に書き込む。CI(米国)専用。手元から使うと観測地点が混ざる",
+    )
+    p.add_argument(
+        "--ping",
+        action="store_true",
+        help="価格が動いたページを IndexNow で通知する。CI専用",
     )
     p.add_argument(
         "--save-check",
@@ -154,7 +160,10 @@ def main() -> int:
             )
             return 1
     else:
-        latest, recorded, failed = collect(catalog, fetcher(), HISTORY, now, record=args.record)
+        latest, recorded_slugs, failed = collect(
+            catalog, fetcher(), HISTORY, now, record=args.record
+        )
+        recorded = len(recorded_slugs)
         save_latest(LATEST, latest)
         history = load_history(HISTORY)
 
@@ -204,6 +213,24 @@ def main() -> int:
         google_site_verification=os.getenv("GOOGLE_SITE_VERIFICATION", ""),
         demo=args.demo,
     )
+
+    # ---- 価格が動いたページだけ検索エンジンに通知する ----
+    # 内容が変わっていないURLを毎日送るのは IndexNow の仕様違反になるので、
+    # 記録した slug がある日だけ、そのページと一覧ページを送る。
+    if args.ping and args.record:
+        key = str((cfg.get("indexnow") or {}).get("key") or "")
+        urls = changed_urls(base_url, recorded_slugs)
+        if not key:
+            logging.warning("indexnow.key が未設定のため通知しません")
+        elif not urls:
+            logging.info("価格に変更が無いので IndexNow への通知は省略します")
+        else:
+            ok, detail = submit(urls, key, f"{base_url.rstrip('/')}/{key}.txt")
+            if ok:
+                logging.info("IndexNow に通知しました: %s", detail)
+            else:
+                # 通知の失敗でサイトの更新まで止める理由はない
+                logging.warning("IndexNow への通知に失敗: %s", detail)
 
     monetized = len(catalog.monetized)
     print(

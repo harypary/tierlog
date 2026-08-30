@@ -25,7 +25,7 @@ def collect(
     history_path: Path,
     now: datetime,
     record: bool = False,
-) -> tuple[dict[str, dict], int, int]:
+) -> tuple[dict[str, dict], list[str], int]:
     """全ツールを巡回する。
 
     record=False のときは履歴に書き込まない。既定を False にしてあるのは、
@@ -39,11 +39,11 @@ def collect(
     したがって履歴を書けるのは GitHub Actions だけ(--record)で、
     手元の実行は巡回と生成の確認までに留める。
 
-    戻り値: (latest.json に書く辞書, 記録した変更数, 取得に失敗した数)
+    戻り値: (latest.json に書く辞書, 変更を記録した slug の一覧, 取得に失敗した数)
     """
     history = load_history(history_path)
     latest: dict[str, dict] = {}
-    recorded = 0
+    recorded: list[str] = []
     failed = 0
 
     for tool in catalog.tools:
@@ -71,7 +71,7 @@ def collect(
             if record:
                 append_snapshot(history_path, snapshot)
                 history.setdefault(tool.slug, []).append(snapshot)
-            recorded += 1
+            recorded.append(tool.slug)
             if previous is None:
                 log.info("%s: 初回記録 (%d プラン取得)", tool.slug, len(snapshot.plans))
             else:

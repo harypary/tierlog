@@ -27,6 +27,16 @@ generation:
   # 価格履歴テーブルに出す最大行数
   history_rows: 24
 
+# IndexNow: 価格が動いたページを検索エンジンに直接通知する。
+# Google は非参加だが Bing / Yandex / Seznam / Naver に届く。
+# Bing は ChatGPT の検索基盤でもあるので、このサイトとは相性が良い。
+#
+# key はファイル名としてそのまま公開されるので秘密ではない。
+# site_root/<key>.txt が docs/ 直下にコピーされて配信される。
+# キーを変えるときは site_root/ のファイル名も必ず一緒に変えること。
+indexnow:
+  key: "4a7ca9c4b9934639bba2a25da6730089"
+
 # 比較ページはここに書いたペアだけを生成する。
 # 全組み合わせを自動生成すると Google の scaled content abuse に該当するため、
 # 「実際に検索されている組み合わせ」だけを手で選ぶこと。
