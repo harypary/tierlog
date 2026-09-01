@@ -57,21 +57,17 @@
   },
   "jasper": {
     "detail": "mixed",
-    "expected": 2,
-    "missing": [
-      "Business"
-    ],
+    "expected": 1,
+    "missing": [],
     "resolved": 1,
-    "status": "PARTIAL"
+    "status": "OK"
   },
   "notion": {
     "detail": "embedded-json",
-    "expected": 4,
-    "missing": [
-      "Enterprise"
-    ],
+    "expected": 3,
+    "missing": [],
     "resolved": 3,
-    "status": "PARTIAL"
+    "status": "OK"
   },
   "surfer-seo": {
     "detail": "text",
