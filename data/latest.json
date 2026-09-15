@@ -1,110 +1,175 @@
 {
   "beehiiv": {
-    "checked_at": "2026-09-14T13:44:16.993699+00:00",
+    "checked_at": "2026-09-15T03:14:41.287502+00:00",
     "http_status": 200,
     "method": "mixed",
     "note": "",
     "ok": true,
     "plans_expected": 3,
-    "plans_resolved": 3
+    "plans_resolved": 3,
+    "plans_seen": {
+      "Launch": "2026-09-15T03:14:41.287502+00:00",
+      "Max": "2026-09-15T03:14:41.287502+00:00",
+      "Scale": "2026-09-15T03:14:41.287502+00:00"
+    }
   },
   "claude": {
-    "checked_at": "2026-09-14T13:44:16.993699+00:00",
+    "checked_at": "2026-09-15T03:14:41.287502+00:00",
     "http_status": 200,
     "method": "mixed",
     "note": "",
     "ok": true,
     "plans_expected": 4,
-    "plans_resolved": 3
+    "plans_resolved": 4,
+    "plans_seen": {
+      "Free": "2026-09-15T03:14:41.287502+00:00",
+      "Max": "2026-09-15T03:14:41.287502+00:00",
+      "Pro": "2026-09-15T03:14:41.287502+00:00",
+      "Team": "2026-09-15T03:14:41.287502+00:00"
+    }
   },
   "clickup": {
-    "checked_at": "2026-09-14T13:44:16.993699+00:00",
+    "checked_at": "2026-09-15T03:14:41.287502+00:00",
     "http_status": 200,
     "method": "mixed",
     "note": "",
     "ok": true,
     "plans_expected": 3,
-    "plans_resolved": 3
+    "plans_resolved": 3,
+    "plans_seen": {
+      "Business": "2026-09-15T03:14:41.287502+00:00",
+      "Free Forever": "2026-09-15T03:14:41.287502+00:00",
+      "Unlimited": "2026-09-15T03:14:41.287502+00:00"
+    }
   },
   "cursor": {
-    "checked_at": "2026-09-14T13:44:16.993699+00:00",
+    "checked_at": "2026-09-15T03:14:41.287502+00:00",
     "http_status": 200,
     "method": "mixed",
     "note": "",
     "ok": true,
     "plans_expected": 5,
-    "plans_resolved": 5
+    "plans_resolved": 5,
+    "plans_seen": {
+      "Hobby": "2026-09-15T03:14:41.287502+00:00",
+      "Pro": "2026-09-15T03:14:41.287502+00:00",
+      "Pro+": "2026-09-15T03:14:41.287502+00:00",
+      "Teams": "2026-09-15T03:14:41.287502+00:00",
+      "Ultra": "2026-09-15T03:14:41.287502+00:00"
+    }
   },
   "descript": {
-    "checked_at": "2026-09-14T13:44:16.993699+00:00",
+    "checked_at": "2026-09-15T03:14:41.287502+00:00",
     "http_status": 200,
     "method": "jsonld",
     "note": "",
     "ok": true,
     "plans_expected": 4,
-    "plans_resolved": 4
+    "plans_resolved": 4,
+    "plans_seen": {
+      "Business": "2026-09-15T03:14:41.287502+00:00",
+      "Creator": "2026-09-15T03:14:41.287502+00:00",
+      "Free": "2026-09-15T03:14:41.287502+00:00",
+      "Hobbyist": "2026-09-15T03:14:41.287502+00:00"
+    }
   },
   "elevenlabs": {
-    "checked_at": "2026-09-14T13:44:16.993699+00:00",
+    "checked_at": "2026-09-15T03:14:41.287502+00:00",
     "http_status": 200,
     "method": "mixed",
     "note": "",
     "ok": true,
     "plans_expected": 5,
-    "plans_resolved": 5
+    "plans_resolved": 5,
+    "plans_seen": {
+      "Creator": "2026-09-15T03:14:41.287502+00:00",
+      "Free": "2026-09-15T03:14:41.287502+00:00",
+      "Pro": "2026-09-15T03:14:41.287502+00:00",
+      "Scale": "2026-09-15T03:14:41.287502+00:00",
+      "Starter": "2026-09-15T03:14:41.287502+00:00"
+    }
   },
   "framer": {
-    "checked_at": "2026-09-14T13:44:16.993699+00:00",
+    "checked_at": "2026-09-15T03:14:41.287502+00:00",
     "http_status": 200,
     "method": "jsonld",
     "note": "",
     "ok": true,
     "plans_expected": 3,
-    "plans_resolved": 3
+    "plans_resolved": 3,
+    "plans_seen": {
+      "Basic": "2026-09-15T03:14:41.287502+00:00",
+      "Free": "2026-09-15T03:14:41.287502+00:00",
+      "Pro": "2026-09-15T03:14:41.287502+00:00"
+    }
   },
   "github-copilot": {
-    "checked_at": "2026-09-14T13:44:16.993699+00:00",
+    "checked_at": "2026-09-15T03:14:41.287502+00:00",
     "http_status": 200,
     "method": "mixed",
     "note": "",
     "ok": true,
     "plans_expected": 3,
-    "plans_resolved": 3
+    "plans_resolved": 3,
+    "plans_seen": {
+      "Free": "2026-09-15T03:14:41.287502+00:00",
+      "Pro": "2026-09-15T03:14:41.287502+00:00",
+      "Pro+": "2026-09-15T03:14:41.287502+00:00"
+    }
   },
   "jasper": {
-    "checked_at": "2026-09-14T13:44:16.993699+00:00",
+    "checked_at": "2026-09-15T03:14:41.287502+00:00",
     "http_status": 200,
     "method": "mixed",
     "note": "",
     "ok": true,
     "plans_expected": 1,
-    "plans_resolved": 1
+    "plans_resolved": 1,
+    "plans_seen": {
+      "Pro": "2026-09-15T03:14:41.287502+00:00"
+    }
   },
   "notion": {
-    "checked_at": "2026-09-14T13:44:16.993699+00:00",
+    "checked_at": "2026-09-15T03:14:41.287502+00:00",
     "http_status": 200,
     "method": "embedded-json",
     "note": "",
     "ok": true,
     "plans_expected": 3,
-    "plans_resolved": 3
+    "plans_resolved": 3,
+    "plans_seen": {
+      "Business": "2026-09-15T03:14:41.287502+00:00",
+      "Free": "2026-09-15T03:14:41.287502+00:00",
+      "Plus": "2026-09-15T03:14:41.287502+00:00"
+    }
   },
   "surfer-seo": {
-    "checked_at": "2026-09-14T13:44:16.993699+00:00",
+    "checked_at": "2026-09-15T03:14:41.287502+00:00",
     "http_status": 200,
     "method": "text",
     "note": "",
     "ok": true,
     "plans_expected": 3,
-    "plans_resolved": 3
+    "plans_resolved": 3,
+    "plans_seen": {
+      "Discovery": "2026-09-15T03:14:41.287502+00:00",
+      "Pro": "2026-09-15T03:14:41.287502+00:00",
+      "Standard": "2026-09-15T03:14:41.287502+00:00"
+    }
   },
   "writesonic": {
-    "checked_at": "2026-09-14T13:44:16.993699+00:00",
+    "checked_at": "2026-09-15T03:14:41.287502+00:00",
     "http_status": 200,
     "method": "mixed",
     "note": "",
     "ok": true,
     "plans_expected": 4,
-    "plans_resolved": 4
+    "plans_resolved": 4,
+    "plans_seen": {
+      "Basic": "2026-09-15T03:14:41.287502+00:00",
+      "Free": "2026-09-15T03:14:41.287502+00:00",
+      "Growth": "2026-09-15T03:14:41.287502+00:00",
+      "Starter": "2026-09-15T03:14:41.287502+00:00"
+    }
   }
 }
