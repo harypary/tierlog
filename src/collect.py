@@ -8,15 +8,80 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
 from .catalog import Catalog
 from .extract import extract
 from .fetch import Fetcher
-from .track import append_snapshot, last_ok, load_history, should_record, to_snapshot
+from .track import (
+    append_snapshot,
+    last_ok,
+    load_history,
+    page_changed,
+    should_record,
+    to_snapshot,
+)
 
 log = logging.getLogger(__name__)
+
+
+@dataclass
+class CollectResult:
+    latest: dict[str, dict]
+    # 読者に見える内容が変わった slug。IndexNow の送信対象
+    changed: list[str] = field(default_factory=list)
+    failed: int = 0
+    # 前回の巡回では読めたのに、今回は読めなかったプラン(slug → プラン名)
+    lost: dict[str, list[str]] = field(default_factory=dict)
+
+
+def lost_plans(previous_entry: dict, resolved: set[str]) -> list[str]:
+    """前回の巡回で読めて、今回は読めなかったプラン。
+
+    plans_seen[プラン] が前回の checked_at と一致する = 前回その価格を読めた。
+    読めなくなった「その日」だけ返すので、直すまで毎日通知が続くことはない
+    (翌日には plans_seen がもう前回の checked_at と一致しない)。
+    """
+    checked = previous_entry.get("checked_at")
+    seen = previous_entry.get("plans_seen")
+    if not checked or not isinstance(seen, dict):
+        return []  # 比べる基準が無い(初回、または plans_seen を導入する前)
+    return sorted(plan for plan, ts in seen.items() if ts == checked and plan not in resolved)
+
+
+def lost_report(lost: dict[str, list[str]], catalog: Catalog, now: datetime) -> str:
+    """読めなくなったプランを知らせる Issue の本文。"""
+    by_slug = {t.slug: t for t in catalog.tools}
+    lines = [
+        f"**{now:%Y-%m-%d} の日次巡回**",
+        "",
+        "前回の巡回では読めていたプランの価格を、今回は読めませんでした。",
+        "料金ページが作り替えられた可能性が高いです。",
+        "",
+    ]
+    for slug, plans in sorted(lost.items()):
+        tool = by_slug.get(slug)
+        name, url = (tool.name, tool.pricing_url) if tool else (slug, "")
+        lines.append(f"- **{name}** (`{slug}`): {', '.join(plans)} — {url}")
+    lines += [
+        "",
+        "### サイト上の扱い",
+        "",
+        "該当ツールは「Partly verified」表示になり、読めなかった行には最後に読めた日付が出ます。",
+        "読めない日が `stale_after_days`（既定14日）を超えると、そのプランの価格は伏せられます。",
+        "誤った価格が出ることはありませんが、放置すると空欄になります。",
+        "",
+        "### 直し方",
+        "",
+        "`config/tools.yaml` の該当ツールに `patterns` を書きます"
+        "（金額を捉えるグループを1つだけ含む正規表現）。",
+        "直せない場合は、そのプランを `plans` から外してください。",
+        "",
+        "この通知は読めなくなった日に1回だけ出ます。直すまで毎日届くことはありません。",
+    ]
+    return "\n".join(lines) + "\n"
 
 
 def collect(
@@ -24,8 +89,9 @@ def collect(
     fetcher: Fetcher,
     history_path: Path,
     now: datetime,
+    previous_latest: dict[str, dict] | None = None,
     record: bool = False,
-) -> tuple[dict[str, dict], list[str], int]:
+) -> CollectResult:
     """全ツールを巡回する。
 
     record=False のときは履歴に書き込まない。既定を False にしてあるのは、
@@ -39,52 +105,78 @@ def collect(
     したがって履歴を書けるのは GitHub Actions だけ(--record)で、
     手元の実行は巡回と生成の確認までに留める。
 
-    戻り値: (latest.json に書く辞書, 変更を記録した slug の一覧, 取得に失敗した数)
+    previous_latest は前回の latest.json。プランごとの「最後に読めた時刻」
+    (plans_seen)を引き継ぐのと、読めなくなったプランを見つけるのに使う。
     """
     history = load_history(history_path)
-    latest: dict[str, dict] = {}
-    recorded: list[str] = []
-    failed = 0
+    result = CollectResult(latest={})
+    previous_latest = previous_latest or {}
 
     for tool in catalog.tools:
-        result = fetcher.get(tool.pricing_url)
+        prev_entry = previous_latest.get(tool.slug) or {}
+        # 読めなかった日は前回の値を持ち越す。設定から外したプランは持ち越さない
+        seen = {
+            plan: ts
+            for plan, ts in (prev_entry.get("plans_seen") or {}).items()
+            if plan in tool.plans
+        }
+        fetched = fetcher.get(tool.pricing_url)
 
-        if not result.ok:
-            failed += 1
-            log.warning("%s: 取得できませんでした (%s)", tool.slug, result.error)
-            latest[tool.slug] = {
+        if not fetched.ok:
+            result.failed += 1
+            log.warning("%s: 取得できませんでした (%s)", tool.slug, fetched.error)
+            result.latest[tool.slug] = {
                 "checked_at": now.isoformat(),
                 "ok": False,
-                "note": result.error,
-                "http_status": result.status,
+                "note": fetched.error,
+                "http_status": fetched.status,
+                "plans_seen": seen,
             }
+            # 取得できない日は「読めなくなった」とは言わない。相手側の一時的な障害が
+            # ほとんどで、続けば鮮度切れで価格が伏せられ、月次点検が FETCH として拾う
             continue
 
-        extraction = extract(result.html, tool.plans, tool.patterns)
+        extraction = extract(fetched.html, tool.plans, tool.patterns)
         snapshot = to_snapshot(tool.slug, extraction, now)
         previous = last_ok(history.get(tool.slug, []))
 
         if not extraction.ok:
-            failed += 1
+            result.failed += 1
             log.warning("%s: 価格を抽出できませんでした (%s)", tool.slug, extraction.note)
         elif should_record(previous, snapshot):
             if record:
                 append_snapshot(history_path, snapshot)
                 history.setdefault(tool.slug, []).append(snapshot)
-            recorded.append(tool.slug)
             if previous is None:
+                result.changed.append(tool.slug)
                 log.info("%s: 初回記録 (%d プラン取得)", tool.slug, len(snapshot.plans))
-            else:
+            elif page_changed(previous, snapshot):
+                result.changed.append(tool.slug)
                 log.info(
                     "%s: 変更を検出 %s → %s",
                     tool.slug,
                     previous.signature or "(なし)",
                     snapshot.signature,
                 )
+            else:
+                # 価格表記の一覧を持たない古い記録の後に、基準として追記しただけ。
+                # ページは何も変わっていないので通知しない
+                log.info("%s: 価格表記の一覧を基準として記録", tool.slug)
         else:
             log.info("%s: 変更なし", tool.slug)
 
-        resolved = len(extraction.resolved_plans)
+        resolved_names = {p.plan for p in extraction.resolved_plans}
+        for plan in resolved_names:
+            seen[plan] = now.isoformat()
+
+        lost = [p for p in lost_plans(prev_entry, resolved_names) if p in tool.plans]
+        if lost:
+            result.lost[tool.slug] = lost
+            log.warning(
+                "%s: 前回は読めた %s を今回は読めませんでした", tool.slug, ", ".join(lost)
+            )
+
+        resolved = len(resolved_names)
         if extraction.ok and resolved < len(tool.plans):
             # 全プラン取れないのは普通だが、0件が続くならセレクタが死んでいる
             log.info(
@@ -95,17 +187,20 @@ def collect(
                 extraction.method,
             )
 
-        latest[tool.slug] = {
+        result.latest[tool.slug] = {
             "checked_at": now.isoformat(),
             "ok": extraction.ok,
             "note": extraction.note,
-            "http_status": result.status,
+            "http_status": fetched.status,
             "method": extraction.method,
             "plans_resolved": resolved,
             "plans_expected": len(tool.plans),
+            # プランごとに、最後に価格を読めた時刻。サイトの確認日表示と、
+            # 読めなくなったプランの検出に使う
+            "plans_seen": seen,
         }
 
-    return latest, recorded, failed
+    return result
 
 
 # 状態の良し悪しの順序。前回より下がったかを判定するのに使う。

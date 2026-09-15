@@ -38,6 +38,26 @@ KIND_PAGE = "page"
 KIND_FIRST = "first_seen"
 
 
+def _token_value(token: str) -> float:
+    try:
+        return float(token.lstrip("$").replace(",", ""))
+    except ValueError:
+        return float("inf")
+
+
+def _sorted_tokens(tokens: set[str]) -> tuple[str, ...]:
+    return tuple(sorted(tokens, key=lambda t: (_token_value(t), t)))
+
+
+def _token_list(tokens: tuple[str, ...], limit: int = 4) -> str:
+    """表に入れる金額の一覧。長いと表が崩れるので先頭だけ出す。"""
+    if not tokens:
+        return "—"
+    shown = ", ".join(tokens[:limit])
+    rest = len(tokens) - limit
+    return f"{shown} +{rest} more" if rest > 0 else shown
+
+
 @dataclass(frozen=True)
 class Snapshot:
     ts: str
@@ -47,6 +67,11 @@ class Snapshot:
     plans: dict[str, dict]
     method: str = ""
     note: str = ""
+    # ページ上の価格表記の集合。signature はこれのハッシュ。
+    # ハッシュだけだと「何かが変わった」までしか言えず、公開ページに
+    # 中身の無い "page edited" が並んだ(Claude 2026-09-02, Surfer SEO 2026-09-09)。
+    # 集合そのものを残しておけば「$X が現れ、$Y が消えた」まで書ける。
+    tokens: tuple[str, ...] = ()
 
     @property
     def when(self) -> datetime:
@@ -66,6 +91,9 @@ class Change:
     before: float | None = None
     after: float | None = None
     period: str = ""
+    # KIND_PAGE のときだけ使う。ページ上に新しく現れた/消えた価格表記
+    appeared: tuple[str, ...] = ()
+    disappeared: tuple[str, ...] = ()
 
     @property
     def when(self) -> datetime:
@@ -91,6 +119,14 @@ class Change:
     @property
     def after_display(self) -> str:
         return self._money(self.after)
+
+    @property
+    def appeared_display(self) -> str:
+        return _token_list(self.appeared)
+
+    @property
+    def disappeared_display(self) -> str:
+        return _token_list(self.disappeared)
 
 
 # ---------------------------------------------------------------------
@@ -119,6 +155,7 @@ def load_history(path: Path) -> dict[str, list[Snapshot]]:
                 plans=raw.get("plans") or {},
                 method=raw.get("method", ""),
                 note=raw.get("note", ""),
+                tokens=tuple(raw.get("tokens") or ()),
             )
         except (json.JSONDecodeError, KeyError, TypeError) as e:
             log.warning("%s:%d を読み飛ばしました (%s)", path.name, lineno, e)
@@ -171,7 +208,30 @@ def to_snapshot(slug: str, extraction: Extraction, now: datetime) -> Snapshot:
         plans=plans,
         method=extraction.method,
         note=extraction.note,
+        tokens=tuple(extraction.tokens),
     )
+
+
+def page_changed(previous: Snapshot, current: Snapshot) -> bool:
+    """読者に見える内容が変わったか。IndexNow に通知するかもこれで決める。"""
+    if previous.signature != current.signature:
+        return True
+    for plan, now in current.plans.items():
+        was = previous.plans.get(plan)
+        if not was:
+            continue
+        # 金額が同じでも課金周期の表記が変わったら記録する。
+        # $33/月 と $33/年 は読者にとって全く違う情報で、シグネチャは
+        # 金額だけから作るのでこれを見ないと永久に古い表記が残る。
+        if was.get("period") != now.get("period"):
+            return True
+        # シグネチャが同じまま金額が変わる = 同じ価格集合の中で別の金額に
+        # 紐付いた。記録しないと、表示している値と「読めた日」が食い違う
+        if was.get("amount") != now.get("amount"):
+            return True
+    # シグネチャが同じでも、抽出できたプランが増えた場合は記録する
+    # (前回は取りこぼしていた、というだけなので値上げ扱いにはならない)
+    return set(current.plans) - set(previous.plans) != set()
 
 
 def should_record(previous: Snapshot | None, current: Snapshot) -> bool:
@@ -184,18 +244,12 @@ def should_record(previous: Snapshot | None, current: Snapshot) -> bool:
         return False  # 取得失敗は履歴を汚さない。latest.json 側に記録する
     if previous is None:
         return True
-    if previous.signature != current.signature:
+    if page_changed(previous, current):
         return True
-    # 金額が同じでも課金周期の表記が変わったら記録する。
-    # $33/月 と $33/年 は読者にとって全く違う情報で、シグネチャは
-    # 金額だけから作るのでこれを見ないと永久に古い表記が残る。
-    for plan, now in current.plans.items():
-        was = previous.plans.get(plan)
-        if was and was.get("period") != now.get("period"):
-            return True
-    # シグネチャが同じでも、抽出できたプランが増えた場合は記録する
-    # (前回は取りこぼしていた、というだけなので値上げ扱いにはならない)
-    return set(current.plans) - set(previous.plans) != set()
+    # 価格表記の集合を持たない古い記録には、基準として1回だけ追記する。
+    # これが無いと次にページが変わったとき、比べる相手が無く中身を書けない。
+    # ページは何も変わっていないので、変更イベントにはならない(diff が空になる)
+    return bool(current.tokens) and not previous.tokens
 
 
 def last_ok(snaps: list[Snapshot]) -> Snapshot | None:
@@ -211,6 +265,10 @@ def last_ok(snaps: list[Snapshot]) -> Snapshot | None:
 def diff(previous: Snapshot, current: Snapshot) -> list[Change]:
     changes: list[Change] = []
     plans_before, plans_after = previous.plans, current.plans
+    # 価格表記の集合が同じ = ページ上の金額は1円も動いていない。
+    # その状態でプラン単位の差が出るのは、こちらの紐付けが変わったか
+    # 読めなくなっただけなので、ベンダーの行動として公開しない。
+    same_prices = previous.signature == current.signature
 
     for plan in sorted(set(plans_before) | set(plans_after)):
         before = plans_before.get(plan, {}).get("amount")
@@ -218,11 +276,16 @@ def diff(previous: Snapshot, current: Snapshot) -> list[Change]:
         period = (plans_after.get(plan) or plans_before.get(plan) or {}).get("period", "")
 
         if before is None and after is not None:
+            # 「追跡し始めた」は、読めるようになっただけの場合でも真なので出してよい
             kind = KIND_ADDED
         elif before is not None and after is None:
+            if same_prices:
+                continue  # 読めなくなっただけ。「掲載終了」と書くと嘘になる
             kind = KIND_REMOVED
         elif before == after or before is None:
             continue
+        elif same_prices:
+            continue  # 同じ金額の集合の中で、別の金額に紐付いただけ
         else:
             kind = KIND_INCREASE if after > before else KIND_DECREASE
 
@@ -238,10 +301,24 @@ def diff(previous: Snapshot, current: Snapshot) -> list[Change]:
             )
         )
 
-    if not changes and previous.signature != current.signature:
+    if not changes and not same_prices:
         # プラン単位の差は取れなかったが、ページ上の価格集合は確かに変わっている。
-        # 「何が」まで言えないので、断定せず「変更を検出」とだけ記録する。
-        changes.append(Change(ts=current.ts, slug=current.slug, kind=KIND_PAGE))
+        # どのプランの話かは断定しない。ただし両方の記録に価格表記の集合があれば、
+        # 「現れた金額・消えた金額」までは自分の記録どうしの比較として言える。
+        appeared: tuple[str, ...] = ()
+        disappeared: tuple[str, ...] = ()
+        if previous.tokens and current.tokens:
+            appeared = _sorted_tokens(set(current.tokens) - set(previous.tokens))
+            disappeared = _sorted_tokens(set(previous.tokens) - set(current.tokens))
+        changes.append(
+            Change(
+                ts=current.ts,
+                slug=current.slug,
+                kind=KIND_PAGE,
+                appeared=appeared,
+                disappeared=disappeared,
+            )
+        )
 
     # シグネチャが同じなら金額は1円も動いていない。課金周期の表記だけが
     # 変わった場合がこれに当たるが、それは抽出側を直したときにも起きる。
@@ -285,6 +362,24 @@ class ToolState:
     def has_prices(self) -> bool:
         return any(p.amount is not None for p in self.plans)
 
+    def is_current(self, plan: PlanPrice) -> bool:
+        """最新の確認でこのプランの価格を読めたか。"""
+        return (
+            plan.amount is not None
+            and plan.verified_at is not None
+            and self.verified_at is not None
+            and plan.verified_at >= self.verified_at
+        )
+
+    @property
+    def current_plans(self) -> tuple[PlanPrice, ...]:
+        return tuple(p for p in self.plans if self.is_current(p))
+
+    @property
+    def unconfirmed_plans(self) -> tuple[PlanPrice, ...]:
+        """価格は出しているが、最新の確認では読めなかったプラン。"""
+        return tuple(p for p in self.plans if p.amount is not None and not self.is_current(p))
+
     @property
     def tracked_since(self) -> datetime | None:
         if not self.changes:
@@ -297,6 +392,47 @@ class ToolState:
             if change.kind != KIND_FIRST:
                 return change
         return None
+
+
+def _plan_state(
+    name: str,
+    entry: dict,
+    recorded_at: datetime | None,
+    seen: dict[str, datetime] | None,
+    tool_verified_at: datetime | None,
+    now: datetime,
+    stale_after_days: int,
+) -> PlanPrice:
+    """1プラン分の表示用の価格と、その価格を最後に読めた時刻。
+
+    確認日をツール単位で持つと、1プランだけ読めなくなっても全プランが
+    「確認済み」に見える。Claude の Team は 2026-09-04 から11日間、
+    実際には読めていないのに Verified と表示されていた。
+    """
+    amount = entry.get("amount")
+    if amount is None:
+        return PlanPrice(name, None)
+
+    if seen is None:
+        # plans_seen を持たない旧形式の latest.json。ツール単位の確認日で代用する
+        verified = tool_verified_at
+    else:
+        # 履歴に記録した時点では確かに読めていたので、それも候補になる
+        candidates = [d for d in (recorded_at, seen.get(name)) if d is not None]
+        verified = max(candidates) if candidates else None
+
+    # ツール全体と同じ期限で、このプランだけ伏せる。
+    # 読めない日が続いたプランの古い価格を、現在価格として出し続けない
+    if verified is None or now - verified > timedelta(days=stale_after_days):
+        return PlanPrice(name, None)
+
+    return PlanPrice(
+        plan=name,
+        amount=amount,
+        period=entry.get("period", ""),
+        confidence=entry.get("confidence", "none"),
+        verified_at=verified,
+    )
 
 
 def build_state(
@@ -321,12 +457,22 @@ def build_state(
     if latest_entry.get("checked_at"):
         last_checked = datetime.fromisoformat(latest_entry["checked_at"])
 
+    # プランごとの「最後に価格を読めた時刻」。collect が latest.json に書く。
+    # None は plans_seen を導入する前の latest.json
+    raw_seen = latest_entry.get("plans_seen")
+    seen = (
+        {plan: datetime.fromisoformat(ts) for plan, ts in raw_seen.items()}
+        if isinstance(raw_seen, dict)
+        else None
+    )
+
     # 今日の巡回で取得できていればそれが確認日。できていなければ、
-    # 確認できた最後の日 = 履歴の最終行まで遡る。
+    # 確認できた最後の日まで遡る。
     if latest_entry.get("ok") and last_checked is not None:
         verified_at = last_checked
     else:
-        verified_at = current_since
+        known = [d for d in (current_since, *(seen or {}).values()) if d is not None]
+        verified_at = max(known) if known else None
 
     # 「最後に価格を確認できた日」から stale_after_days を超えたら価格を伏せる。
     # 古い価格を現在価格として出し続けるのは、このサイトでは最もやってはいけないこと。
@@ -337,11 +483,14 @@ def build_state(
     else:
         recorded = newest.plans if newest else {}
         plans = tuple(
-            PlanPrice(
-                plan=name,
-                amount=(recorded.get(name) or {}).get("amount"),
-                period=(recorded.get(name) or {}).get("period", ""),
-                confidence=(recorded.get(name) or {}).get("confidence", "none"),
+            _plan_state(
+                name,
+                recorded.get(name) or {},
+                current_since,
+                seen,
+                verified_at,
+                now,
+                stale_after_days,
             )
             for name in plan_names
         )

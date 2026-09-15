@@ -117,6 +117,12 @@ def _period(change: Change) -> str:
     return {"month": "/mo", "year": "/yr"}.get(change.period, "")
 
 
+def _amounts(tokens: tuple[str, ...], limit: int = 3) -> str:
+    if len(tokens) <= limit:
+        return ", ".join(tokens)
+    return f"{', '.join(tokens[:limit])} and {len(tokens) - limit} other amounts"
+
+
 def headline_for(change: Change, tool: Tool) -> str:
     name = tool.name
     unit = _period(change)
@@ -149,8 +155,17 @@ def headline_for(change: Change, tool: Tool) -> str:
         # 消えた理由も同様に断定できない(掲載終了か、読めなくなったか)
         return f"{name} {change.plan} is no longer listed"
     if change.kind == KIND_PAGE:
-        # プラン単位まで特定できていないので断定しない。
+        # プラン単位まで特定できていないので、どのプランの値段かは言わない。
         # 「値上げした」と書いて外れると、このサイトの存在意義が消える。
+        # 言えるのは「ページに現れた金額・消えた金額」までで、
+        # それは自分の記録どうしの比較なので断定してよい。
+        parts = []
+        if change.appeared:
+            parts.append(f"now shows {_amounts(change.appeared)}")
+        if change.disappeared:
+            parts.append(f"no longer shows {_amounts(change.disappeared)}")
+        if parts:
+            return f"{name}'s pricing page {' and '.join(parts)}"
         return f"{name} changed its pricing page"
     return f"Started tracking {name}"
 

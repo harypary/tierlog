@@ -14,6 +14,10 @@
 <span class="badge badge-stale" title="We could not confirm this price recently, so we are not showing it.">
   Unverified
 </span>
+{% elif state.unconfirmed_plans %}
+<span class="badge badge-partial" title="Some plans could not be read on the latest check. Those rows show the date they were last confirmed.">
+  Partly verified {{ state.verified_at|date }}
+</span>
 {% else %}
 <span class="badge badge-ok">Verified {{ state.verified_at|date }}</span>
 {% endif %}
@@ -26,9 +30,15 @@
   </thead>
   <tbody>
   {% for plan in page.state.plans %}
-    <tr{% if plan.confidence == 'low' %} class="low-confidence"{% endif %}>
+    {# 最新の確認で読めなかったプランは、最後に読めた日を行に出す。
+       ツール単位の Verified だけだと、読めていない行まで確認済みに見える #}
+    {% set current = plan.amount is none or page.state.is_current(plan) %}
+    {% set cls = (('low-confidence ' if plan.confidence == 'low' else '') ~ ('unconfirmed' if not current else '')) | trim %}
+    <tr{% if cls %} class="{{ cls }}"{% endif %}>
       <td>{{ plan.plan }}</td>
-      <td class="price">{{ plan.display() }}</td>
+      <td class="price">{{ plan.display() }}
+        {%- if not current %}<span class="as-of">as of {{ plan.verified_at|date }}</span>{% endif -%}
+      </td>
       {% if not compact %}
       <td class="muted">
         {%- if plan.amount is none -%}

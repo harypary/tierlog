@@ -1,0 +1,44 @@
+name: テスト
+
+# PR（主に Dependabot の依存更新）でテストを走らせる。
+# daily.yml にもテストはあるが、あちらは main に入った後にしか動かないので、
+# 壊れた依存を取り込んだかどうかはマージ後の巡回が落ちるまで分からなかった。
+#
+# 巡回（ネットワーク）はしない。リポジトリにある価格履歴からサイトを作り直し、
+# --verify まで通れば「この変更で公開物が壊れない」と言える。
+
+on:
+  pull_request:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 依存を入れる
+        run: |
+          pip install --no-deps -r requirements.txt
+          pip install --no-deps -r requirements-dev.txt
+
+      - name: 回帰テスト
+        run: |
+          python -m pytest tests/ -q
+          python -m ruff check src/ main.py tests/ --line-length 100
+
+      # SITE_BASE_URL を Variables から取らないのは、Dependabot のPRからは読めないため
+      - name: 既存の履歴からサイトを生成して検証する
+        env:
+          BASE_URL: https://harypary.github.io/tierlog
+        run: |
+          python main.py --render --base-url "$BASE_URL" --out build
+          python main.py --verify --base-url "$BASE_URL" --out build

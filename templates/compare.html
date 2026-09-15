@@ -62,8 +62,8 @@
           <td><time datetime="{{ change.when|iso }}">{{ change.when|date }}</time></td>
           <td>{{ tool.name }}</td>
           <td>{{ change.plan or '—' }}</td>
-          <td>{{ change.before_display }}</td>
-          <td>{{ change.after_display }}</td>
+          <td>{{ change.disappeared_display if change.kind == 'page' else change.before_display }}</td>
+          <td>{{ change.appeared_display if change.kind == 'page' else change.after_display }}</td>
         </tr>
       {% endfor %}
       </tbody>

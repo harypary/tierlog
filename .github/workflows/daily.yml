@@ -22,6 +22,7 @@ permissions:
   contents: write
   pages: write
   id-token: write
+  issues: write     # 読めなくなったプランを知らせる
 
 concurrency:
   group: pages
@@ -64,7 +65,8 @@ jobs:
         # --ping は価格が動いた日だけ IndexNow に通知する。
         # 変わっていないURLを毎日送るのは仕様違反(スパム扱い)なので、
         # 送信判定は main.py 側で「記録した slug があるか」で行う。
-        run: python main.py --record --ping
+        # --lost-report は、前回読めたプランを今回読めなかったときだけファイルを書く。
+        run: python main.py --record --ping --lost-report lost-plans.md
 
       # 開示バーの消失・リンク切れ・DEMOデータの混入を検出する。
       # ここで落とせば壊れた状態がPagesに出ることはない。
@@ -95,6 +97,32 @@ jobs:
           # デプロイは通す。今回の観測は失われるが、次回の巡回で同じ差分が
           # 再検出されるため履歴に穴は空かない(記録日が1日ずれるだけ)。
           echo "::warning::価格履歴を push できませんでした。次回実行で再記録されます"
+
+      # 前回読めたプランを今回読めなかった日だけ Issue で知らせる。
+      # 月次点検(check.yml)を待つと、気づく前に鮮度切れで価格が空欄になる。
+      # Claude の Team は実際に11日間気づかれなかった。
+      # 通知に失敗してもデプロイは止めない
+      - name: 読めなくなったプランがあれば Issue で知らせる
+        if: hashFiles('lost-plans.md') != ''
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 日付を入れない。同じ種類の問題を1つのIssueで追い続けるための目印にする
+          TITLE: "日次巡回: 読めなくなったプランがあります"
+        run: |
+          set -euo pipefail
+          echo "" >> lost-plans.md
+          echo "_[実行ログ](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})_" >> lost-plans.md
+          existing=$(gh issue list --repo "${{ github.repository }}" \
+            --state open --label maintenance --search "in:title $TITLE" \
+            --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "${{ github.repository }}" --body-file lost-plans.md
+            echo "既存の Issue #$existing に追記しました"
+          else
+            gh issue create --repo "${{ github.repository }}" \
+              --title "$TITLE" --label maintenance --body-file lost-plans.md
+          fi
 
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

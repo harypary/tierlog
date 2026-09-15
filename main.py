@@ -21,7 +21,7 @@ import yaml
 from dotenv import load_dotenv
 
 from src.catalog import ConfigError, load_catalog
-from src.collect import check, collect, compare_checks
+from src.collect import check, collect, compare_checks, lost_report
 from src.demo import build_demo_history
 from src.fetch import Fetcher
 from src.indexnow import changed_urls, submit
@@ -56,6 +56,12 @@ def parse_args() -> argparse.Namespace:
         "--ping",
         action="store_true",
         help="価格が動いたページを IndexNow で通知する。CI専用",
+    )
+    p.add_argument(
+        "--lost-report",
+        type=Path,
+        default=None,
+        help="前回読めたのに今回読めなかったプランがあれば、Issue本文をこのパスに書く。CI専用",
     )
     p.add_argument(
         "--save-check",
@@ -160,12 +166,25 @@ def main() -> int:
             )
             return 1
     else:
-        latest, recorded_slugs, failed = collect(
-            catalog, fetcher(), HISTORY, now, record=args.record
+        result = collect(
+            catalog,
+            fetcher(),
+            HISTORY,
+            now,
+            previous_latest=load_latest(LATEST),
+            record=args.record,
         )
-        recorded = len(recorded_slugs)
+        latest, changed_slugs, failed = result.latest, result.changed, result.failed
+        recorded = len(changed_slugs)
         save_latest(LATEST, latest)
         history = load_history(HISTORY)
+
+        # 読めなくなったプランは、月次点検を待たずにその日のうちに知らせる。
+        # サイト上は「Partly verified」になるだけなので、放っておくと誰も気づかないまま
+        # 鮮度切れで空欄になる。Issue を立てるのはワークフロー側
+        if result.lost and args.lost_report and args.record:
+            args.lost_report.write_text(lost_report(result.lost, catalog, now), encoding="utf-8")
+            logging.warning("読めなくなったプランを %s に書き出しました", args.lost_report)
 
         if failed == len(catalog.tools):
             # 全滅はネットワーク断かIPブロック。古い履歴で上書き生成すると
@@ -219,7 +238,7 @@ def main() -> int:
     # 記録した slug がある日だけ、そのページと一覧ページを送る。
     if args.ping and args.record:
         key = str((cfg.get("indexnow") or {}).get("key") or "")
-        urls = changed_urls(base_url, recorded_slugs)
+        urls = changed_urls(base_url, changed_slugs)
         if not key:
             logging.warning("indexnow.key が未設定のため通知しません")
         elif not urls:
