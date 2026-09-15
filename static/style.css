@@ -152,6 +152,9 @@ tbody tr:last-child td { border-bottom: none; }
 .row-increase .delta { color: var(--up); }
 .row-decrease .delta { color: var(--down); }
 .low-confidence td { opacity: 0.65; }
+/* 最新の確認で読めなかった行。値は最後に読めたもの */
+.unconfirmed td { opacity: 0.75; }
+.as-of { display: block; font-size: 0.75rem; font-weight: 400; color: var(--muted); }
 /* 横スクロールでレイアウトを壊さない */
 .plans, .history, .overview { display: table; }
 
@@ -167,6 +170,7 @@ tbody tr:last-child td { border-bottom: none; }
 }
 .badge-ok { color: var(--down); border-color: var(--down); }
 .badge-stale { color: var(--muted); background: var(--surface); }
+.badge-partial { color: var(--muted); border-style: dashed; }
 
 /* ---- CTA(クリック率そのもの) ---- */
 .cta-wrap { margin: 1.25rem 0 0; }

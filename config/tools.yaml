@@ -37,6 +37,13 @@ tools:
     homepage: https://www.anthropic.com/claude
     pricing_url: https://www.anthropic.com/pricing
     plans: [Free, Pro, Max, Team]
+    # 2026-09-04 に料金ページが作り替えられ、Team の見出しと価格の間に
+    # 「For teams of 2 to 150」などが挟まって近傍探索で取れなくなった。
+    # 価格は「Standard seat … $20 Per seat / month if billed annually.
+    # $25 if billed monthly.」の形。Pro の $17 と同じく年払い時の月額を採る。
+    # 同じカードの月払い $25 と Premium seat の $100 を掴まないよう、直後の Per seat まで縛る
+    patterns:
+      Team: 'Standard seat[^$]{0,120}\$(\d+(?:\.\d{1,2})?)(?=\s*Per seat\s*/\s*month)'
     currency: USD
     affiliate: {program: none, url: "", terms: ""}
 

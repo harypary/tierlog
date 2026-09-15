@@ -6,7 +6,8 @@
 {% block canonical %}{{ base_url }}/{{ page.path }}{% endblock %}
 
 {% block head %}
-{% set priced = page.state.plans | selectattr('amount', 'ne', None) | rejectattr('is_free') | list %}
+{# 最新の確認で読めたプランだけを構造化データに出す。読めなかった行の古い値を検索結果に載せない #}
+{% set priced = page.state.current_plans | rejectattr('is_free') | list %}
 {% if not page.state.stale and priced %}
 {# 構造化データ。価格は verified_at 時点のものなので priceValidUntil を付けず、
    確認日を description に含めて誤解を避ける。 #}
@@ -68,6 +69,17 @@
       on the last check. Rather than guess, we leave it blank.
     </p>
     {% endif %}
+    {% set unconfirmed = page.state.unconfirmed_plans %}
+    {% if unconfirmed %}
+    <p class="muted small">
+      We could not read
+      {% for plan in unconfirmed %}{{ plan.plan }}{{ ", " if not loop.last }}{% endfor %}
+      on the latest check ({{ page.state.verified_at|date }}).
+      {{ 'That row shows' if unconfirmed|length == 1 else 'Those rows show' }} the last figure we
+      confirmed and when. If we still cannot read it, we stop showing it rather than let an old
+      price pass as current.
+    </p>
+    {% endif %}
     <p class="cta-wrap">{{ m.cta(page.tool, "See " ~ page.tool.name ~ " plans") }}</p>
   </section>
   {% endif %}
@@ -89,8 +101,9 @@
         <tr class="row-{{ change.kind }}">
           <td><time datetime="{{ change.when|iso }}">{{ change.when|date }}</time></td>
           <td>{{ change.plan or '—' }}</td>
-          <td>{{ change.before_display }}</td>
-          <td>{{ change.after_display }}</td>
+          {# Page changed はプランに紐付かないので、消えた金額と現れた金額を出す #}
+          <td>{{ change.disappeared_display if change.kind == 'page' else change.before_display }}</td>
+          <td>{{ change.appeared_display if change.kind == 'page' else change.after_display }}</td>
           <td class="delta">
             {%- if change.pct is not none -%}
               {{ '%+.0f' % change.pct }}%

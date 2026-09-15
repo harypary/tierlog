@@ -154,6 +154,28 @@ def test_patterns_override_the_heuristic():
     assert got["Pro"] == 30.0
 
 
+def test_claude_team_standard_seat_pattern():
+    """2026-09-04 の作り替えで Team の見出しと価格が離れ、11日間読めていなかった。
+
+    config の patterns そのものを検証する。同じカードにある月払いの $25 と、
+    Premium seat の $100 を掴まないこと。
+    """
+    import yaml
+
+    root = Path(__file__).resolve().parent.parent
+    cfg = yaml.safe_load((root / "config" / "tools.yaml").read_text(encoding="utf-8"))
+    rules = next(t for t in cfg["tools"] if t["slug"] == "claude")["patterns"]
+    html = (
+        "<h3>Team</h3><p>For teams of 2 to 150</p><a>Get Team plan</a>"
+        "<h4>Standard seat</h4><p>All Claude features, plus more usage than Pro*</p>"
+        "<span>$20</span><p>Per seat / month if billed annually. $25 if billed monthly.</p>"
+        "<h4>Premium seat</h4><p>5x more usage than standard seats*</p>"
+        "<span>$100</span><p>Per seat / month if billed annually. $125 if billed monthly.</p>"
+    )
+    (team,) = extract(f"<html><body>{html}</body></html>", ("Team",), rules).plans
+    assert (team.amount, team.period) == (20.0, "month")
+
+
 def test_bare_usd_notation_is_read():
     """「99 USD per month」のように通貨記号を使わないページ(Surfer)。"""
     html = "<div>Standard</div><div>99</div><div>USD</div><div>per month</div>"

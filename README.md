@@ -123,7 +123,7 @@ python -m ruff check src/ main.py tests/
 
 ### テストは「過去に公開してしまった嘘」の一覧です
 
-[tests/](tests/) の37件は思いつきで書いたものではなく、**実際に誤った価格を
+[tests/](tests/) の46件は思いつきで書いたものではなく、**実際に誤った価格を
 公開してしまった事故から1件ずつ起こしたもの**です。
 
 | テスト | 実際に起きたこと |
@@ -134,9 +134,14 @@ python -m ruff check src/ main.py tests/
 | `test_free_plan_absent_from_page_is_not_invented` | 無料プランが無い製品に「Free — $0」を捏造 |
 | `test_plan_name_matches_on_word_boundary` | `Pro` が `products` にヒットして無関係な数字を掲載 |
 | `test_new_plan_does_not_claim_the_vendor_added_it` | 抽出が改善しただけなのに「ベンダーがプランを追加した」と公開 |
+| `test_plan_not_read_on_latest_check_is_not_shown_as_verified` | Claude の Team を11日間読めていないのに「Verified」と表示 |
+| `test_claude_team_standard_seat_pattern` | 料金ページの作り替えで Claude の Team が読めなくなった |
+| `test_page_change_names_the_amounts_that_moved` | ページの価格が動いたのに「page edited」としか書けなかった（Claude, Surfer SEO） |
 
 **落ちたときにテストの方を緩めないこと。** 同じ嘘をもう一度公開することになります。
 CI は巡回より前にこれを実行し、失敗したらその日は更新しません。
+PR（Dependabot の依存更新を含む）でも [ci.yml](.github/workflows/ci.yml) が同じテストと、
+既存の履歴からのサイト生成・`--verify` を走らせます。**テストが通っていないPRはマージしないこと。**
 間違った価格を配るくらいなら、更新しない方がましだからです。
 
 ### ⚠️ 価格履歴を書けるのは CI だけです
@@ -305,6 +310,15 @@ python main.py --check
 点検はCI（米国）で走ります。手元（日本）から `--check` しても構いませんが、
 地域差で結果が変わるので、判断は Issue の内容を基準にしてください。
 なお `--save-check`（比較基準の更新）はCI専用です。
+
+**読めなくなったプランは毎日検出します。** 前回の巡回で読めたプランを今回読めなかったとき、
+[daily.yml](.github/workflows/daily.yml) がその日のうちに Issue で知らせます（読めなくなった日に1回だけ）。
+月次点検だけだと、Claude の Team のように**気づくまで最大1ヶ月かかる**ためです。
+
+サイト上では、そのツールの表示が「Partly verified」になり、読めなかった行に最後に読めた日付が出ます。
+確認日はプランごとに持っているので（`data/latest.json` の `plans_seen`）、
+読めていないプランを「確認済み」と表示することはありません。
+読めない日が `stale_after_days` を超えると、そのプランの価格は伏せられます。
 
 ### 精度を上げる方法 = このサイトの主なメンテ作業
 

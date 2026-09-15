@@ -21,6 +21,7 @@ import html as html_mod
 import json
 import re
 from dataclasses import dataclass, field
+from datetime import datetime
 
 # 価格表記の2形式:
 #   $1,234.56  … 一般的な表記。直後が数字/記号なら誤検出なので除外し、
@@ -103,6 +104,9 @@ class PlanPrice:
     raw: str = ""
     period: str = ""  # month | year | ""
     confidence: str = "none"  # high | low | none
+    # この価格を最後に読めた時刻。表示用の状態を組み立てるとき(track.build_state)
+    # にだけ入る。抽出した直後は None
+    verified_at: datetime | None = None
 
     @property
     def is_free(self) -> bool:
