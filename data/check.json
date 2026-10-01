@@ -1,10 +1,14 @@
 {
   "beehiiv": {
-    "detail": "mixed",
+    "detail": "mixed — 価格トークンは見つかりましたがプラン名と対応付けられませんでした",
     "expected": 3,
-    "missing": [],
-    "resolved": 3,
-    "status": "OK"
+    "missing": [
+      "Launch",
+      "Scale",
+      "Max"
+    ],
+    "resolved": 0,
+    "status": "NG"
   },
   "claude": {
     "detail": "mixed",
