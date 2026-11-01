@@ -27,9 +27,13 @@
   "cursor": {
     "detail": "mixed",
     "expected": 5,
-    "missing": [],
-    "resolved": 5,
-    "status": "OK"
+    "missing": [
+      "Hobby",
+      "Pro",
+      "Pro+"
+    ],
+    "resolved": 2,
+    "status": "PARTIAL"
   },
   "descript": {
     "detail": "jsonld",
